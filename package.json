@@ -3,6 +3,27 @@
   "version": "1.0.0",
   "private": true,
   "description": "FraudShield - Financial Fraud Detection & Investigation Platform (MERN)",
+  "homepage": "https://fraud-shield-sand.vercel.app",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/dheerajkmahale/FraudShield.git"
+  },
+  "author": "Dheeraj Mahale",
+  "license": "MIT",
+  "keywords": [
+    "fraud-detection",
+    "fintech",
+    "financial-crime",
+    "investigation-platform",
+    "mern",
+    "react",
+    "nodejs",
+    "express",
+    "mongodb-atlas",
+    "openapi",
+    "swagger",
+    "transaction-monitoring"
+  ],
   "scripts": {
     "install:all": "npm install --prefix server && npm install --prefix client",
     "dev": "concurrently -n SERVER,CLIENT -c blue,green \"npm run dev --prefix server\" \"npm run dev --prefix client -- --host localhost --port 5173 --strictPort\"",

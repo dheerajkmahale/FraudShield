@@ -1,339 +1,457 @@
 # 🛡 FraudShield — Financial Fraud Detection & Investigation Platform
 
-A full-stack MERN (MongoDB, Express, React, Node.js) application for monitoring financial transactions, flagging suspicious activity with a rule-based fraud detection engine, and managing fraud investigations end-to-end.
+[![Deployment Status](https://img.shields.io/badge/Production-Live-39FF9E?style=for-the-badge&logo=vercel&logoColor=black)](https://fraud-shield-sand.vercel.app)
+[![API Documentation](https://img.shields.io/badge/OpenAPI_3.0-Swagger-00E5FF?style=for-the-badge&logo=swagger&logoColor=black)](https://fraudshield-api-7an9.onrender.com/api/docs)
+[![Stack](https://img.shields.io/badge/Stack-MERN-FF007F?style=for-the-badge&logo=react)](https://github.com/dheerajkmahale/FraudShield)
+[![License](https://img.shields.io/badge/License-MIT-white?style=for-the-badge)](LICENSE)
 
-Built as a portfolio-grade project demonstrating production-style architecture, authentication, authorization, testing, and documentation practices for a Full-Stack / MERN developer internship application.
-
----
-
-## Table of Contents
-
-1. [Project Overview](#1-project-overview)
-2. [Problem Statement](#2-problem-statement)
-3. [Features](#3-features)
-4. [Technology Stack](#4-technology-stack)
-5. [Architecture](#5-architecture)
-6. [Folder Structure](#6-folder-structure)
-7. [Database Design](#7-database-design)
-8. [API Documentation](#8-api-documentation)
-9. [Authentication Flow](#9-authentication-flow)
-10. [Fraud Detection Logic](#10-fraud-detection-logic)
-11. [Setup Instructions](#11-setup-instructions)
-12. [Environment Variables](#12-environment-variables)
-13. [Database Setup](#13-database-setup)
-14. [Seed Instructions](#14-seed-instructions)
-15. [Running Locally](#15-running-locally)
-16. [Testing](#16-testing)
-17. [Build Instructions](#17-build-instructions)
-18. [Deployment](#18-deployment)
-19. [Security Considerations](#19-security-considerations)
-20. [Future Improvements](#20-future-improvements)
-21. [Screenshots](#21-screenshots)
-22. [Author / Project Information](#22-author--project-information)
+FraudShield is a full-stack financial fraud detection and investigation platform designed to monitor transactions in real time, identify suspicious velocity and structuring patterns, manage investigative cases with linked evidence, and provide security-focused operational visibility.
 
 ---
 
-## 1. Project Overview
+## 🌐 Live Deployments
 
-FraudShield is a transaction monitoring and fraud investigation platform aimed at small financial teams. Authenticated users create and review transactions, a rule-based engine scores each one for risk in real time, and investigators manage cases end-to-end — notes, linked transactions, status changes — while admins oversee users and audit trails.
-
-## 2. Problem Statement
-
-Financial institutions process large volumes of transactions daily, and manually reviewing each one for fraud is infeasible. FraudShield solves this by automatically scoring every transaction against a configurable rule set the moment it's created, surfacing only the transactions that actually need human attention, and giving investigators a structured workflow (cases, notes, linked evidence, status tracking) instead of a spreadsheet.
-
-## 3. Features
-
-- **Authentication**: register/login/logout, JWT, bcrypt password hashing, persistent sessions, protected & role-based routes.
-- **Roles**: Admin, Investigator, Analyst — each with different permissions (see [Authentication Flow](#9-authentication-flow)).
-- **User management**: profile updates, password changes, admin user list with search/filter, activate/deactivate accounts, role management.
-- **Transaction management**: full CRUD, server-side search/filter/sort/pagination by account, amount, status, risk level, date range, type.
-- **Rule-based fraud detection engine**: 7 configurable rules producing a 0–100 risk score (see [Fraud Detection Logic](#10-fraud-detection-logic)).
-- **Dashboard**: total transactions, total value, suspicious count, critical count, active investigations, fraud rate, average risk score, user count — all from live backend aggregation queries, visualized with line/pie/bar charts (Recharts).
-- **Investigation management**: create/assign/update cases, priority & status tracking, notes, linked transactions.
-- **Transaction network visualization**: SVG-based account relationship graph (accounts as nodes, transactions as edges), click a node to inspect its transaction history.
-- **Transaction details page**: full transaction record, detection reasons, related transactions, investigation link, role-gated actions.
-- **In-app notifications**: critical/suspicious transaction alerts, investigation assignment/update notices, read/unread state.
-- **Audit logging**: every sensitive action (login, transaction CRUD, investigation changes, role changes) is recorded with actor, resource, and metadata; viewable by admins.
-- **Consistent REST API** with standard JSON envelopes and status codes.
-- **Centralized error handling**, both backend (Mongo/JWT/validation errors normalized) and frontend (friendly messages, loading/empty/error states everywhere).
-- **Backend + frontend automated tests** (Jest/Supertest, Vitest/Testing Library).
-
-## 4. Technology Stack
-
-**Frontend:** React 18, Vite, React Router v6, Axios, Context API, custom hooks, Recharts, plain CSS design system (no UI framework dependency).
-
-**Backend:** Node.js, Express, Mongoose, JWT, bcryptjs, express-validator, Helmet, CORS, express-rate-limit, express-mongo-sanitize, Morgan + Winston logging.
-
-**Database:** MongoDB (Atlas or local), with compound indexes on frequently-queried fields and aggregation pipelines for statistics.
-
-**Testing:** Jest + Supertest + mongodb-memory-server (backend), Vitest + React Testing Library (frontend).
-
-**Tooling:** npm workspacesless monorepo (root scripts orchestrate both apps), dotenv, nodemon, concurrently.
-
-## 5. Architecture
-
-```
-┌─────────────┐        HTTPS/JSON       ┌──────────────┐        Mongoose         ┌───────────┐
-│  React SPA  │  ───────────────────►   │  Express API │  ───────────────────►   │  MongoDB  │
-│  (Vite)     │  ◄───────────────────   │  (Node.js)   │  ◄───────────────────   │  Atlas    │
-└─────────────┘                         └──────────────┘                         └───────────┘
-      │                                        │
-      │  JWT stored in localStorage            │  Layered MVC-ish structure:
-      │  attached via Axios interceptor        │  routes → validators → controllers → services → models
-```
-
-Request flow: `Route → validate() middleware → protect/authorize middleware → controller → (service layer for business logic) → Mongoose model → MongoDB`. Errors thrown anywhere in that chain are caught by `asyncHandler` and normalized by the central `errorHandler`.
-
-## 6. Folder Structure
-
-```
-fraudshield/
-├── client/                      # React + Vite frontend
-│   ├── src/
-│   │   ├── components/          # Reusable UI (Sidebar, Topbar, Badges, Modal, Tables, States...)
-│   │   ├── pages/                # Route-level views (Dashboard, Transactions, Investigations...)
-│   │   ├── layouts/              # AppLayout (sidebar + topbar shell)
-│   │   ├── context/               # AuthContext, NotificationContext
-│   │   ├── hooks/                 # useApi
-│   │   ├── services/               # Axios instance + one module per resource
-│   │   ├── utils/                  # formatters
-│   │   ├── __tests__/               # Vitest component tests
-│   │   ├── App.jsx / main.jsx / index.css
-│   ├── index.html / vite.config.js / package.json
-│
-├── server/                      # Express + MongoDB backend
-│   ├── src/
-│   │   ├── config/                # db.js, constants.js
-│   │   ├── controllers/            # one per resource
-│   │   ├── middleware/              # auth, error handling, validation, audit logging
-│   │   ├── models/                   # User, Transaction, Investigation, Notification, AuditLog
-│   │   ├── routes/                    # one router per resource + index
-│   │   ├── services/                   # fraudDetectionService, notificationService
-│   │   ├── utils/                        # ApiError, asyncHandler, apiResponse, logger
-│   │   ├── validators/                    # express-validator chains per resource
-│   │   ├── seed/                           # seed.js
-│   │   ├── __tests__/                       # Jest/Supertest suites
-│   │   ├── app.js / server.js
-│   ├── .env.example / package.json
-│
-├── README.md
-├── .gitignore
-└── package.json                  # root scripts (dev, install:all, seed, build, test)
-```
-
-## 7. Database Design
-
-**User** — `name, email (unique), password (hashed, select:false), role (admin|investigator|analyst), isActive, lastLogin, timestamps`. Text index on name/email for search.
-
-**Transaction** — `transactionRef (unique), senderAccount, receiverAccount, amount, currency, transactionType, paymentMethod, status, location, ipAddress, deviceInfo, occurredAt, riskScore, riskLevel, fraudStatus, suspicionReasons[], detectedAt, investigation (ref), createdBy (ref User)`. Compound indexes on `occurredAt`, `(riskLevel, fraudStatus)`, `(senderAccount, occurredAt)`, `amount`.
-
-**Investigation** — `caseId (unique), title, description, assignedTo (ref User), createdBy (ref User), relatedTransactions[] (ref Transaction), priority, status, notes[{author (ref User), text, timestamps}]`. Index on `(status, priority)`.
-
-**Notification** — `user (ref), type, message, relatedTransaction (ref), relatedInvestigation (ref), isRead`. Index on `(user, isRead, createdAt)`.
-
-**AuditLog** — `user (ref), action, resource, resourceId, metadata (Mixed), ipAddress`. Indexes on `createdAt`, `(user, createdAt)`, `action`.
-
-**Relationships:** User → Investigations (assignedTo/createdBy) → Transactions (relatedTransactions); Transaction → Investigation (back-reference); User → Notifications; User → AuditLogs.
-
-## 8. API Documentation
-
-All responses follow: `{ "success": boolean, "message": string, "data": any, "meta"?: {...} }`. Errors: `{ "success": false, "message": string, "details"?: [...] }`.
-
-| Method | Route | Auth | Description |
+| Component | URL | Status | Description |
 |---|---|---|---|
-| POST | `/api/auth/register` | Public | Register a new user |
-| POST | `/api/auth/login` | Public | Login, returns JWT |
-| GET | `/api/auth/me` | Bearer | Current user |
-| POST | `/api/auth/logout` | Bearer | Audit-logged logout (stateless JWT) |
-| GET | `/api/users` | Admin | List/search/filter users |
-| GET | `/api/users/:id` | Admin | Get one user |
-| PUT | `/api/users/profile` | Bearer | Update own profile |
-| PUT | `/api/users/change-password` | Bearer | Change own password |
-| PUT | `/api/users/:id/role` | Admin | Change a user's role |
-| PUT | `/api/users/:id/status` | Admin | Activate/deactivate a user |
-| GET | `/api/transactions` | Bearer | List with filters/sort/pagination |
-| GET | `/api/transactions/suspicious` | Bearer | Flagged/confirmed-fraud transactions |
-| GET | `/api/transactions/statistics` | Bearer | Aggregated stats for charts |
-| GET | `/api/transactions/network` | Bearer | Node/edge data for the network graph |
-| GET | `/api/transactions/:id` | Bearer | One transaction + related |
-| POST | `/api/transactions` | Admin/Analyst/Investigator | Create (runs fraud engine) |
-| PUT | `/api/transactions/:id` | Admin/Investigator | Update |
-| DELETE | `/api/transactions/:id` | Admin | Delete |
-| GET | `/api/investigations` | Bearer | List with filters |
-| GET | `/api/investigations/:id` | Bearer | One investigation |
-| POST | `/api/investigations` | Admin/Investigator | Create |
-| PUT | `/api/investigations/:id` | Admin/Investigator | Update status/priority/assignment |
-| POST | `/api/investigations/:id/notes` | Admin/Investigator | Add a note |
-| POST | `/api/investigations/:id/link-transaction` | Admin/Investigator | Link a transaction |
-| GET | `/api/notifications` | Bearer | List own notifications |
-| PUT | `/api/notifications/:id/read` | Bearer | Mark one read |
-| PUT | `/api/notifications/read-all` | Bearer | Mark all read |
-| GET | `/api/audit-logs` | Admin | List audit trail |
-| GET | `/api/dashboard/statistics` | Bearer | Aggregated dashboard summary |
+| **Web Application** | [https://fraud-shield-sand.vercel.app](https://fraud-shield-sand.vercel.app) | `Active` | Production React SPA hosted on Vercel |
+| **REST API Server** | [https://fraudshield-api-7an9.onrender.com](https://fraudshield-api-7an9.onrender.com) | `Active` | Express + Mongoose API hosted on Render |
+| **Swagger UI Docs** | [https://fraudshield-api-7an9.onrender.com/api/docs](https://fraudshield-api-7an9.onrender.com/api/docs) | `Active` | Interactive OpenAPI 3.0 documentation |
+| **System Health** | [https://fraudshield-api-7an9.onrender.com/api/health](https://fraudshield-api-7an9.onrender.com/api/health) | `Active` | Service uptime & readiness probe |
 
-Status codes used: `200, 201, 400, 401, 403, 404, 409, 422, 500`.
+---
 
-## 9. Authentication Flow
+## 📋 Table of Contents
 
-1. Client submits credentials to `/api/auth/login` (or `/register`).
-2. Server verifies the password with `bcrypt.compare`, signs a JWT containing `{ id, role }`, and returns it.
-3. Client stores the token in `localStorage` and attaches it to every request via an Axios request interceptor.
-4. The `protect` middleware verifies the token on every protected route, loads the user, and rejects deactivated accounts.
-5. The `authorize(...roles)` middleware checks `req.user.role` against an allow-list per route.
-6. **Role permissions:**
-   - **Admin**: manage users, view all transactions/investigations, delete transactions, view audit logs.
-   - **Investigator**: view transactions, create/update investigations, add notes, update transactions, view/manage assigned cases.
-   - **Analyst**: view transactions, create transactions, view dashboards/statistics, cannot manage investigations or users.
-7. A 401 response from the API triggers the frontend to clear the stored session; `ProtectedRoute` then redirects to `/login`.
+1. [Executive Summary & Problem Statement](#-executive-summary--problem-statement)
+2. [Key Capabilities & Features](#-key-capabilities--features)
+3. [System Architecture](#-system-architecture)
+4. [Technology Stack](#-technology-stack)
+5. [Repository Structure](#-repository-structure)
+6. [Authentication & RBAC Matrix](#-authentication--rbac-matrix)
+7. [Fraud Detection Engine Specification](#-fraud-detection-engine-specification)
+8. [API Reference & OpenAPI Specification](#-api-reference--openapi-specification)
+9. [Demo Accounts & Role Profiles](#-demo-accounts--role-profiles)
+10. [Environment Variables](#-environment-variables)
+11. [Local Development Setup](#-local-development-setup)
+12. [Testing & Quality Assurance](#-testing--quality-assurance)
+13. [Production Deployment Architecture](#-production-deployment-architecture)
+14. [Security Engineering & Defense-in-Depth](#-security-engineering--defense-in-depth)
+15. [Visual Walkthrough & Screenshots](#-visual-walkthrough--screenshots)
+16. [Future Engineering Roadmap](#-future-engineering-roadmap)
+17. [License & Author](#-license--author)
 
-## 10. Fraud Detection Logic
+---
 
-**This is a rule-based engine, not machine learning.** It lives in `server/src/services/fraudDetectionService.js` as a single `evaluateTransaction(transaction)` function with a stable input/output contract, specifically so it can be replaced or augmented with an ML model later without touching controllers or routes.
+## 🎯 Executive Summary & Problem Statement
 
-Each transaction is scored 0–100 by accumulating points from these rules:
+Financial institutions and fintech platforms process thousands of transactions per second. Manually auditing spreadsheets or relying solely on coarse thresholds leads to high false-positive rates and investigator fatigue. Complex multi-hop structuring and velocity rings often go undetected until funds have settled offshore.
 
-| Rule | Points | Trigger |
-|---|---|---|
-| Very high amount | +35 | amount ≥ 500,000 |
-| High amount | +20 | amount ≥ 200,000 |
-| Velocity | +20 | ≥3 transactions from the sender within 10 minutes |
-| Rapid movement | +15 | funds sent to ≥3 distinct accounts within 5 minutes |
-| Repeated transfers | +15 | ≥5 transfers to the same receiver within 24 hours |
-| Unusual location | +15 | location not seen in the account's recent history |
-| Linked high-risk account | +25 | sender or receiver tied to a prior confirmed-fraud transaction |
-| Round-number structuring | +5 | amount ≥ 50,000 and a round multiple of 10,000 |
+**FraudShield** addresses these challenges by unifying:
+1. **Automated Risk Scoring**: Real-time scoring against 7 behavioral and statistical heuristics upon transaction creation.
+2. **Interactive Topology Graphs**: Circular SVG account relationship mapping to immediately highlight disbursement funnels and money-mule rings.
+3. **Structured Investigation Workflows**: Collaborative case management with audit notes, status transitions, and tagged transaction evidence.
+4. **Defense-in-Depth Security**: Strict role-based access control, tamper-evident audit trails, rate limiting, and scoped Content Security Policies.
 
-Score is capped at 100. Risk levels: **0–29 Low, 30–59 Medium, 60–79 High, 80–100 Critical**. A score ≥ 30 sets `fraudStatus: 'flagged'` and triggers a notification to admins/investigators (critical scores get a distinct, higher-urgency notification type).
+---
 
-## 11. Setup Instructions
+## ⚡ Key Capabilities & Features
 
-**Prerequisites:** Node.js 18+, npm 9+, a MongoDB instance (local or Atlas).
+- **JWT Authentication & Session Resilience**: Secure password hashing with bcrypt (cost factor 12), stateless token verification, and defensive client-side storage recovery that guards against corrupted state.
+- **Three-Tier Role-Based Access Control**: Strict server-side authorization separating `Admin`, `Investigator`, and `Analyst` capabilities.
+- **Rule-Based Fraud Detection Engine**: Deterministic scoring engine generating risk scores (0–100) and risk classifications (`Low`, `Medium`, `High`, `Critical`).
+- **Live Executive Dashboard**: Real-time metrics powered by MongoDB aggregation pipelines — total financial volume, platform fraud rate, active threat counters, and Recharts trend visualizations.
+- **Transaction Monitoring & Audit Export**: Server-side filtering by account, amount, risk severity, and date range; multi-column sorting; paginated tables; and one-click CSV export.
+- **Investigation Case Management**: End-to-end incident workflows including priority escalation, investigator notes, linked transaction evidence, and immutable audit logs.
+- **Transaction Network Visualization**: Custom SVG relationship graph highlighting account clusters, risk color-coding, and collapsible AI Co-Pilot & Behavioral Insight drawers.
+- **In-App Notification Center**: 30-second REST polling architecture delivering priority alerts for suspicious and critical financial events without WebSocket overhead.
+- **Comprehensive Audit Logging**: Tamper-evident logging tracking sensitive actions (authentication, transaction mutations, role reassignments, and case updates) with actor IDs and IP addresses.
+- **Interactive OpenAPI 3.0 / Swagger UI**: Built-in documentation covering all 25 platform endpoints with dark-themed branding.
 
-```bash
-git clone <your-repo-url> fraudshield
-cd fraudshield
-npm run install:all        # installs both server and client dependencies
-```
+---
 
-## 12. Environment Variables
+## 🏗 System Architecture
 
-**server/.env** (copy from `server/.env.example`):
+FraudShield implements a decoupled, layered client-server architecture designed for reliability, maintainability, and clean separation of concerns:
 
 ```
+┌─────────────────────────────────────────────────────────────────┐
+│                       Client Layer (Vercel)                     │
+│  React 18 + Vite SPA  │  Vanilla CSS Tokens  │  Recharts Engine │
+│  Axios HTTP Interceptor (Bearer JWT) │ 30s Polling State Sync   │
+└────────────────────────────────┬────────────────────────────────┘
+                                 │ HTTPS / REST API
+                                 ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                      Server Layer (Render)                      │
+│  Node.js + Express  │  Scoped Helmet CSP  │  CORS Whitelisting  │
+│  express-rate-limit │ express-mongo-sanitize │ Winston Logging  │
+│                                                                 │
+│  ┌───────────────────────────────────────────────────────────┐  │
+│  │                     Middleware Pipeline                   │  │
+│  │   Route Validator (express-validator)                     │  │
+│  │   JWT Auth Verification (protect)                         │  │
+│  │   Role Authorization (authorize)                          │  │
+│  │   Audit Logger Middleware                                 │  │
+│  └─────────────────────────────┬─────────────────────────────┘  │
+│                                │                                │
+│  ┌─────────────────────────────▼─────────────────────────────┐  │
+│  │                 Controller & Service Layer                │  │
+│  │   fraudDetectionService (7 Heuristic Risk Rules)          │  │
+│  │   notificationService   (Transactional & Security Alerts) │  │
+│  │   Centralized Error Handling (ApiError / asyncHandler)    │  │
+│  └─────────────────────────────┬─────────────────────────────┘  │
+└────────────────────────────────┼────────────────────────────────┘
+                                 │ Mongoose ODM / TLS
+                                 ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                     Data Layer (MongoDB Atlas)                  │
+│  Collections: Users │ Transactions │ Investigations │ AuditLogs │
+│  Compound Indexes: (occurredAt) │ (riskLevel, fraudStatus)       │
+│  High-Performance Aggregation Pipelines ($group, $cond, $facet)  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## 🛠 Technology Stack
+
+### Frontend
+- **Core**: React 18.3.1, Vite 5.4.1 (ES Modules)
+- **Routing**: React Router DOM 6.26.1 (HTML5 history routing with SPA rewrites)
+- **HTTP Client**: Axios 1.7.4 with unified response/error interceptors
+- **Data Visualization**: Recharts 2.12.7 (Responsive time-series charts, bar breakdowns)
+- **Design System**: Vanilla CSS design system with custom CSS custom properties, dark-mode tokens, and glassmorphic panels
+
+### Backend
+- **Runtime**: Node.js (v18+)
+- **Web Framework**: Express 4.19.2 (Layered controllers, services, and route modules)
+- **Object Modeling**: Mongoose 8.5.2
+- **Authentication**: JSON Web Tokens (`jsonwebtoken` 9.0.2) + `bcryptjs` 2.4.3
+- **Validation**: `express-validator` 7.2.0
+- **Security**: `helmet` 7.1.0 (scoped CSP), `cors` 2.8.5, `express-rate-limit` 7.4.0, `express-mongo-sanitize` 2.2.0
+- **Logging**: Winston 3.13.1 + Morgan 1.10.0
+- **API Documentation**: OpenAPI 3.0.0, `swagger-jsdoc` 6.3.0, `swagger-ui-express` 5.0.1
+
+### Cloud Infrastructure & Database
+- **Database**: MongoDB Atlas (Multi-tenant M0/Dedicated with compound indexes)
+- **Backend Hosting**: Render (Dynamic port binding, health monitoring)
+- **Frontend Hosting**: Vercel (Edge CDN, SPA fallback routing)
+
+### Testing & Tooling
+- **Backend Testing**: Jest 29.7.0, Supertest 7.0.0, `mongodb-memory-server` 9.4.0
+- **Frontend Testing**: Vitest 2.0.5, React Testing Library 16.0.0, jsdom 24.1.1
+- **Orchestration**: Concurrently 8.2.2, Nodemon 3.1.4
+
+---
+
+## 📁 Repository Structure
+
+```
+FraudShield/
+├── client/                               # React + Vite Frontend
+│   ├── public/                           # Static assets
+│   ├── src/
+│   │   ├── components/                   # Reusable UI (StatCard, Badges, Tables, Skeleton...)
+│   │   ├── context/                      # AuthContext, NotificationContext, ToastContext
+│   │   ├── layouts/                      # AppLayout (collapsible sidebar + topbar)
+│   │   ├── pages/                        # Dashboard, Transactions, Investigations, NetworkView, Profile...
+│   │   ├── services/                     # Axios instance & typed API resource modules
+│   │   ├── utils/                        # Currency, date, and risk formatting helpers
+│   │   └── __tests__/                    # Vitest component & routing unit tests
+│   ├── vercel.json                       # Vercel SPA routing fallback configuration
+│   ├── vite.config.js                    # Vite bundler configuration
+│   └── package.json                      # Client dependencies & scripts
+│
+├── server/                               # Node.js + Express Backend
+│   ├── src/
+│   │   ├── config/                       # db.js (Mongoose), swagger.js (OpenAPI 3.0), constants.js
+│   │   ├── controllers/                  # Resource controllers (auth, user, transaction, investigation...)
+│   │   ├── middleware/                   # auth (JWT), errorHandler, validation, auditLogger
+│   │   ├── models/                       # Mongoose schemas: User, Transaction, Investigation, AuditLog...
+│   │   ├── routes/                       # Express routers + index.js aggregator
+│   │   ├── services/                     # fraudDetectionService, notificationService
+│   │   ├── utils/                        # ApiError, ApiResponse, asyncHandler, logger (Winston)
+│   │   ├── validators/                   # express-validator chains per endpoint
+│   │   ├── seed/                         # seed.js (deterministic test data generator)
+│   │   ├── __tests__/                    # Jest + Supertest integration test suites
+│   │   ├── app.js                        # Express app initialization & security middleware
+│   │   └── server.js                     # HTTP server startup & graceful shutdown
+│   ├── .env.example                      # Sanitized backend environment template
+│   └── package.json                      # Server dependencies & scripts
+│
+├── docs/                                 # Documentation & media assets
+│   └── screenshots/                      # Platform screenshots (dashboard, network, swagger)
+├── INTERVIEW_PREP.md                     # Comprehensive technical interview guide
+├── README.md                             # Production documentation & project overview
+├── .gitignore                            # Hardened git ignore rules
+└── package.json                          # Monorepo orchestration scripts
+```
+
+---
+
+## 🔐 Authentication & RBAC Matrix
+
+Authentication is stateless and powered by JSON Web Tokens. Upon login or registration, the server issues a signed JWT containing the user's MongoDB `_id` and verified `role`. The token is stored in client storage and dispatched in the `Authorization: Bearer <token>` header.
+
+The backend strictly enforces route-level authorization via `authorize(...roles)`:
+
+| Capability / Resource | Public | Analyst | Investigator | Admin |
+|---|:---:|:---:|:---:|:---:|
+| User Registration & Login | ✅ | ✅ | ✅ | ✅ |
+| View Platform Dashboard & KPIs | ❌ | ✅ | ✅ | ✅ |
+| Search & Filter Transactions | ❌ | ✅ | ✅ | ✅ |
+| Create New Transactions (Trigger Engine) | ❌ | ✅ | ✅ | ✅ |
+| Update Transaction Status / Risk Override | ❌ | ❌ | ✅ | ✅ |
+| Delete Transaction Records | ❌ | ❌ | ❌ | ✅ |
+| View Investigations List & Details | ❌ | ✅ | ✅ | ✅ |
+| Create Investigation Cases | ❌ | ❌ | ✅ | ✅ |
+| Update Investigation Status & Priority | ❌ | ❌ | ✅ | ✅ |
+| Add Case Notes & Link Evidence | ❌ | ❌ | ✅ | ✅ |
+| View Interactive Network Graph | ❌ | ✅ | ✅ | ✅ |
+| Receive Real-Time Notifications | ❌ | ✅ | ✅ | ✅ |
+| View System Audit Trail Logs | ❌ | ❌ | ❌ | ✅ |
+| User Role & Status Administration | ❌ | ❌ | ❌ | ✅ |
+
+---
+
+## 🧠 Fraud Detection Engine Specification
+
+The fraud engine is implemented in [server/src/services/fraudDetectionService.js](file:///c:/Users/dheer/OneDrive/Documents/Desktop/fraudshield/fraudshield/server/src/services/fraudDetectionService.js). It evaluates transactions synchronously upon creation against 7 deterministic behavioral rules.
+
+The engine accumulates risk points (capped at 100) to classify each transaction:
+
+| Rule Name | Points | Condition & Threshold |
+|---|:---:|---|
+| **Very High Amount** | `+35` | Transaction amount $\ge \$500,000$ |
+| **High Amount** | `+20` | Transaction amount $\ge \$200,000$ |
+| **Account Velocity** | `+20` | $\ge 3$ transactions executed by the sender within a 10-minute window |
+| **Rapid Movement** | `+15` | Sender transfers funds to $\ge 3$ distinct recipient accounts within 5 minutes |
+| **Repeated Transfers** | `+15` | $\ge 5$ transactions sent to the same receiver within a 24-hour window |
+| **Unusual Location** | `+15` | Originating location has not appeared in the account's historical profile |
+| **Linked High-Risk Account** | `+25` | Sender or receiver is linked to a prior confirmed-fraud transaction record |
+| **Round-Number Structuring**| `+5` | Amount $\ge \$50,000$ and is an exact multiple of $\$10,000$ (smurfing indicator) |
+
+### Risk Tiers
+- **0 – 29 (Low Risk)**: Auto-cleared; marked as legitimate.
+- **30 – 59 (Medium Risk)**: Flagged for analyst queue review.
+- **60 – 79 (High Risk)**: Flagged; generates priority notification.
+- **80 – 100 (Critical Risk)**: Flagged; generates critical alert for immediate account freezing.
+
+---
+
+## 📖 API Reference & OpenAPI Specification
+
+Interactive documentation is available at [`/api/docs`](https://fraudshield-api-7an9.onrender.com/api/docs). The raw OpenAPI 3.0 specification can be inspected at [`/api/docs.json`](https://fraudshield-api-7an9.onrender.com/api/docs.json).
+
+### Complete Route Catalog
+
+| Module | Method | Path | Auth | Description |
+|---|:---:|---|:---:|---|
+| **System** | `GET` | `/api/health` | Public | Service health & readiness probe |
+| **Auth** | `POST` | `/api/auth/register` | Public | Register new platform account |
+| **Auth** | `POST` | `/api/auth/login` | Public | Authenticate user & receive JWT |
+| **Auth** | `GET` | `/api/auth/me` | Bearer | Fetch authenticated user profile |
+| **Auth** | `POST` | `/api/auth/logout` | Bearer | Invalidate session & record audit event |
+| **Users** | `PUT` | `/api/users/profile` | Bearer | Update user display name |
+| **Users** | `PUT` | `/api/users/change-password` | Bearer | Update user account password |
+| **Users** | `GET` | `/api/users` | Admin | Search & filter users |
+| **Users** | `GET` | `/api/users/{id}` | Admin | Get user record by ID |
+| **Users** | `PUT` | `/api/users/{id}/role` | Admin | Modify user role assignment |
+| **Users** | `PUT` | `/api/users/{id}/status` | Admin | Toggle account active/inactive status |
+| **Transactions** | `GET` | `/api/transactions` | Bearer | Paginated search & multi-filter transactions |
+| **Transactions** | `POST` | `/api/transactions` | Bearer | Create transaction & trigger fraud scoring |
+| **Transactions** | `GET` | `/api/transactions/statistics` | Bearer | Aggregate metrics for dashboard charts |
+| **Transactions** | `GET` | `/api/transactions/suspicious` | Bearer | List flagged & high-risk transactions |
+| **Transactions** | `GET` | `/api/transactions/network` | Bearer | Nodes & edges for account relationship graph |
+| **Transactions** | `GET` | `/api/transactions/{id}` | Bearer | Single transaction details & audit trail |
+| **Transactions** | `PUT` | `/api/transactions/{id}` | Investigator/Admin | Update status & recalculate risk score |
+| **Transactions** | `DELETE` | `/api/transactions/{id}` | Admin | Remove transaction record |
+| **Investigations** | `GET` | `/api/investigations` | Bearer | List investigative cases with status filters |
+| **Investigations** | `POST` | `/api/investigations` | Investigator/Admin | Open new investigation case |
+| **Investigations** | `GET` | `/api/investigations/{id}` | Bearer | Case details, notes, and evidence |
+| **Investigations** | `PUT` | `/api/investigations/{id}` | Investigator/Admin | Update case priority or status |
+| **Investigations** | `POST` | `/api/investigations/{id}/notes` | Bearer | Add case investigator note |
+| **Investigations** | `POST` | `/api/investigations/{id}/link-transaction` | Bearer | Link transaction evidence to case |
+| **Notifications** | `GET` | `/api/notifications` | Bearer | Fetch notification inbox |
+| **Notifications** | `PUT` | `/api/notifications/read-all` | Bearer | Mark all notifications as read |
+| **Notifications** | `PUT` | `/api/notifications/{id}/read` | Bearer | Mark single notification as read |
+| **Audit Logs** | `GET` | `/api/audit-logs` | Admin | Filterable audit trail records |
+| **Dashboard** | `GET` | `/api/dashboard/statistics` | Bearer | Consolidated platform KPI summary |
+
+---
+
+## 👥 Demo Accounts & Role Profiles
+
+For evaluators and recruiters testing the live application or local deployment:
+
+| Role | Email Address | Password | Intended Test Flow |
+|---|---|---|---|
+| **Admin** | `admin@fraudshield.dev` | `Admin@1234` | Full access: User management, audit logs, transaction deletion |
+| **Investigator** | `investigator@fraudshield.dev` | `Investigator@1234` | Case workflow: Open cases, add notes, update transaction risk |
+| **Analyst** | `analyst@fraudshield.dev` | `Analyst@1234` | Read-only investigations: Ingest transactions, review dashboard |
+
+*(Note: In production, test credentials can be generated or tested via the seed script).*
+
+---
+
+## ⚙️ Environment Variables
+
+### Backend (`server/.env`)
+```env
+# Server Runtime
 PORT=5000
-NODE_ENV=development
-MONGODB_URI=mongodb://127.0.0.1:27017/fraudshield
-JWT_SECRET=replace_this_with_a_long_random_string
+NODE_ENV=production
+
+# Database (MongoDB Atlas URI)
+MONGODB_URI=mongodb+srv://<username>:<password>@cluster0.xxxxx.mongodb.net/fraudshield?retryWrites=true&w=majority
+
+# Authentication Secrets
+JWT_SECRET=your_secure_random_64_char_hex_secret
 JWT_EXPIRES_IN=7d
-CLIENT_URL=http://localhost:5173
+
+# CORS Whitelist (Production Frontend URL or comma-separated list)
+CLIENT_URL=https://fraud-shield-sand.vercel.app
+
+# API Rate Limiting
 RATE_LIMIT_WINDOW_MS=900000
 RATE_LIMIT_MAX=300
 ```
 
-**client/.env** (copy from `client/.env.example`):
+### Frontend (`client/.env`)
+```env
+# Production API URL (Render Backend Domain)
+VITE_API_URL=https://fraudshield-api-7an9.onrender.com
 
+# Alternative Base URL (Explicit with /api)
+VITE_API_BASE_URL=https://fraudshield-api-7an9.onrender.com/api
 ```
-VITE_API_BASE_URL=http://localhost:5000/api
-```
 
-Never commit real `.env` files — both are already git-ignored.
+---
 
-## 13. Database Setup
+## 💻 Local Development Setup
 
-**Option A — MongoDB Atlas (recommended for deployment):**
-1. Create a free cluster at [mongodb.com/atlas](https://www.mongodb.com/atlas).
-2. Create a database user and allow-list your IP (or `0.0.0.0/0` for demo purposes).
-3. Copy the connection string into `server/.env` as `MONGODB_URI`.
+### 1. Prerequisites
+- **Node.js**: v18.0.0 or higher
+- **npm**: v9.0.0 or higher
+- **MongoDB**: Local Community Edition (`mongodb://127.0.0.1:27017/fraudshield`) or a MongoDB Atlas connection URI
 
-**Option B — Local MongoDB:** install MongoDB Community Edition, run `mongod`, and use `mongodb://127.0.0.1:27017/fraudshield` as the URI (already the default in `.env.example`).
-
-## 14. Seed Instructions
-
+### 2. Installation
+Clone the repository and install all dependencies:
 ```bash
-cd server
+git clone https://github.com/dheerajkmahale/FraudShield.git
+cd FraudShield
+npm run install:all
+```
+
+### 3. Environment Configuration
+Create the local environment files from the provided sanitized templates:
+```bash
+cp server/.env.example server/.env
+cp client/.env.example client/.env
+```
+
+### 4. Database Seeding
+Populate the database with ~250 realistic transactions, sample investigation cases, audit logs, and demo user accounts:
+```bash
 npm run seed
 ```
 
-This wipes and repopulates the database with ~250 realistic (entirely fictional) transactions, 4 users, 2 investigations, notifications, and audit logs. **Demo credentials (development only):**
+### 5. Running the Application
+Launch both the Express API and Vite React frontend concurrently:
+```bash
+npm run dev
+```
+- Frontend will be available at: `http://localhost:5173`
+- Backend API will be available at: `http://localhost:5000`
+- Swagger UI will be available at: `http://localhost:5000/api/docs`
 
-| Role | Email | Password |
-|---|---|---|
-| Admin | admin@fraudshield.dev | Admin@1234 |
-| Investigator | investigator@fraudshield.dev | Investigator@1234 |
-| Analyst | analyst@fraudshield.dev | Analyst@1234 |
+---
 
-## 15. Running Locally
+## 🧪 Testing & Quality Assurance
 
-From the repository root, with both `.env` files in place:
+FraudShield includes automated test suites covering backend API routes, authentication policies, role authorization, and frontend component rendering:
 
 ```bash
-npm run dev        # runs server (port 5000) and client (port 5173) concurrently
+# Run backend test suite (Jest + Supertest with in-memory MongoDB)
+npm run test:server
+
+# Run frontend test suite (Vitest + React Testing Library)
+npm run test:client
+
+# Verify client production bundle compilation
+npm run build
 ```
 
-Or individually: `npm run server` / `npm run client`. Visit `http://localhost:5173` and log in with a demo account above.
+- **Backend Suites**: 17 tests across 3 suites verifying authentication flows, unauthorized role rejections (403), transaction risk scoring, and investigation updates.
+- **Frontend Suites**: 17 tests across 5 files verifying formatters, badges, pagination logic, network view interactions, and `ProtectedRoute` navigation guards.
 
-## 16. Testing
+---
 
-```bash
-npm run test:server   # Jest + Supertest, in-memory MongoDB (mongodb-memory-server)
-npm run test:client   # Vitest + React Testing Library
-```
+## 🚀 Production Deployment Architecture
 
-Backend coverage: registration/login/validation, JWT auth middleware, transaction CRUD + fraud-engine scoring, role-based authorization (403 checks), investigation creation/authorization/updates. Frontend coverage: badge/status rendering, pagination behavior, formatting utilities, and `ProtectedRoute` auth/role redirect logic.
+FraudShield is configured for automated cloud deployment across three coordinated platforms:
 
-> **Note:** `mongodb-memory-server` downloads a MongoDB binary on first run. In fully offline/sandboxed environments this download can fail — the tests themselves are correct and will run normally with standard internet access (e.g. any local machine or CI runner).
+1. **Database Layer (MongoDB Atlas)**:
+   - Configured with `0.0.0.0/0` Network Access for dynamic cloud IPs.
+   - Dedicated `fraudshield` user with read/write privileges.
+2. **Backend API Layer (Render)**:
+   - Root directory set to `server/`.
+   - Build Command: `npm install` | Start Command: `npm start`.
+   - Automatic environment port binding via `process.env.PORT`.
+3. **Frontend Application Layer (Vercel)**:
+   - Root directory set to `client/`.
+   - Build Command: `npm run build` | Output Directory: `dist`.
+   - Configured with [client/vercel.json](file:///c:/Users/dheer/OneDrive/Documents/Desktop/fraudshield/fraudshield/client/vercel.json) rewrite rule routing `/(.*)` to `/index.html` to eliminate 404s on browser reloads.
 
-## 17. Build Instructions
+---
 
-```bash
-npm run build       # builds the client (client/dist) for production
-```
+## 🛡 Security Engineering & Defense-in-Depth
 
-The server needs no build step (plain Node.js/CommonJS).
+FraudShield incorporates multi-layered security controls to protect financial data and maintain compliance integrity:
 
-## 18. Deployment
+1. **Password Security**: Passwords are encrypted using `bcryptjs` with 12 salt rounds. The password field is explicitly configured with `select: false` in Mongoose to prevent accidental serialization.
+2. **Token Security**: JWT signatures are validated per request; invalid or expired tokens immediately trigger session invalidation and client-side cleanup.
+3. **Scoped Content Security Policy (CSP)**: Helmet is configured platform-wide to enforce strict CSP directives (`default-src 'self'`), while scoped specifically to disable CSP only on `/api/docs` to allow Swagger UI scripts and CSS bundles to execute smoothly.
+4. **CORS Hardening**: Strict origin matching with trailing-slash normalization prevents unauthorized cross-origin resource requests.
+5. **NoSQL Injection Sanitization**: `express-mongo-sanitize` strips `$` and `.` characters from user input across request bodies, query params, and route parameters.
+6. **Input Validation**: `express-validator` enforces strict schema constraints and sanitizes inputs before controllers are executed.
+7. **Rate Limiting**: `express-rate-limit` guards API endpoints against brute-force credential stuffing and denial-of-service spikes.
+8. **Storage Resilience**: Client-side storage parsing is wrapped in defensive exception handlers, preventing corrupted tokens from crashing the React application root.
 
-**Backend** (Render / Railway / any Node host):
-1. Set the root/start directory to `server/`.
-2. Build command: `npm install`. Start command: `npm start`.
-3. Set environment variables from the table in [§12](#12-environment-variables) (`MONGODB_URI` pointing at your Atlas cluster, a strong `JWT_SECRET`, and `CLIENT_URL` set to your deployed frontend's origin).
+---
 
-**Frontend** (Vercel / Netlify):
-1. Root directory: `client/`. Build command: `npm run build`. Output directory: `dist`.
-2. Set `VITE_API_BASE_URL` to your deployed backend's `/api` URL.
+## 📸 Visual Walkthrough & Screenshots
 
-**MongoDB Atlas:** as described in [§13](#13-database-setup); remember to allow-list your backend host's outbound IP (or use Atlas's "allow from anywhere" only for demos, never production).
+### 1. Financial Threat Analytics Dashboard
+Consolidated operational metrics, fraud rate tracking, transaction volume trends, and risk level breakdowns:
+![Dashboard Overview](docs/screenshots/dashboard.png)
 
-## 19. Security Considerations
+### 2. Transaction Relationship Network Graph
+SVG-based topology graph visualizing transaction flows between accounts with collapsible AI Co-Pilot drawers:
+![Transaction Network Visualization](docs/screenshots/network-critical.png)
 
-- Passwords hashed with **bcrypt** (cost factor 12); plaintext passwords are never stored or logged, and the password field is `select: false` by default.
-- **JWT** authentication with configurable expiry; secrets are never hardcoded, only read from environment variables.
-- **Role-based authorization** enforced server-side on every sensitive route — the frontend hides UI for unauthorized roles, but the API is the actual enforcement boundary.
-- **Helmet** sets protective HTTP headers; **CORS** is locked to the configured `CLIENT_URL` origin.
-- **express-rate-limit** throttles all `/api/*` traffic to reduce brute-force/abuse risk.
-- **express-mongo-sanitize** strips `$`/`.` operators from user input to prevent NoSQL injection.
-- **express-validator** validates and normalizes all inputs server-side (never trusting client-side validation alone); Mongoose `CastError`s from malformed ObjectIds are caught and returned as clean 400s rather than leaking internals.
-- **Centralized error handler** hides stack traces and internal error messages in production, returning generic messages for unexpected 500s while still logging full detail server-side via Winston.
-- **Audit logging** on all sensitive actions gives a tamper-evident trail of who did what and when.
-- Self-registration cannot deactivate the registering admin's own account, and a user cannot deactivate themselves, preventing accidental lockout.
+### 3. Suspicious Activity Topology Analysis
+Focused risk clustering showing flagged sender-receiver relationships:
+![Suspicious Activity Graph](docs/screenshots/network-suspicious.png)
 
-## 20. Future Improvements
+### 4. Interactive OpenAPI 3.0 Documentation
+Swagger UI interface documenting all 25 backend endpoints with JWT Bearer authorization support:
+![Swagger Documentation](docs/screenshots/swagger-ui.png)
 
-- Replace/augment the rule-based engine with a trained ML model (e.g. an isolation forest or gradient-boosted classifier) — the engine's `evaluateTransaction` contract was designed specifically to make this a drop-in swap.
-- Redis caching for hot aggregation queries (dashboard/statistics endpoints).
-- Background job queue (e.g. BullMQ) for fraud re-scoring and scheduled reports, decoupled from the request/response cycle.
-- Email/SMS alerts for critical-risk transactions via a transactional email provider.
-- WebSocket-based real-time notifications instead of 30-second polling.
-- Object storage (S3-compatible) for attaching evidence files to investigations.
-- Dockerize both services and add a CI/CD pipeline (GitHub Actions) running the test suites on every PR.
-- A proper admin-configurable rules table (currently rule thresholds are constants in code).
+---
 
-## 21. Screenshots
+## 🗺 Future Engineering Roadmap
 
-_Add screenshots here once you have a running deployment — e.g. `docs/screenshots/dashboard.png`, `transactions.png`, `investigation-detail.png`, `network-view.png`._
+- [ ] **Machine Learning Scoring Model**: Train an Isolation Forest / LightGBM model to augment the existing rule-based engine via the isolated `evaluateTransaction()` contract.
+- [ ] **Distributed Redis Caching**: Cache aggregated metrics for hot endpoints (`/api/dashboard/statistics`) to minimize database load.
+- [ ] **Asynchronous Job Queue**: Decouple risk re-scoring and daily report generation using BullMQ and background workers.
+- [ ] **Cloud Evidence Storage**: Integrate AWS S3 or Google Cloud Storage presigned URLs for attaching KYC and audit documents to investigation cases.
+- [ ] **CI/CD Automation**: Implement GitHub Actions workflows for continuous integration testing and automated release tagging.
 
-## 22. Author / Project Information
+---
 
-**Project:** FraudShield — Financial Fraud Detection & Investigation Platform
-**Stack:** MongoDB · Express · React · Node.js (MERN)
-**Purpose:** Portfolio project demonstrating full-stack development, secure authentication/authorization, rule-based business logic, REST API design, and test-driven backend/frontend development.
+## 📄 License & Author
+
+**Author**: Dheeraj Mahale  
+**Repository**: [https://github.com/dheerajkmahale/FraudShield](https://github.com/dheerajkmahale/FraudShield)  
+**License**: This project is licensed under the [MIT License](LICENSE).

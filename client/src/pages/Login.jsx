@@ -56,17 +56,7 @@ export default function Login() {
           </button>
         </form>
 
-        <div className="auth-demo">
-          <strong>Demo credentials (development only):</strong>
-          <br />
-          Admin: admin@fraudshield.dev / Admin@1234
-          <br />
-          Investigator: investigator@fraudshield.dev / Investigator@1234
-          <br />
-          Analyst: analyst@fraudshield.dev / Analyst@1234
-        </div>
-
-        <p style={{ textAlign: 'center', marginTop: 16, fontSize: 13 }}>
+        <p style={{ textAlign: 'center', marginTop: 20, fontSize: 13 }}>
           Don&apos;t have an account? <Link to="/register">Register</Link>
         </p>
       </div>
