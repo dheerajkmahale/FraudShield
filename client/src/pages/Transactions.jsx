@@ -3,10 +3,12 @@ import AppLayout from '../layouts/AppLayout';
 import TransactionTable from '../components/TransactionTable';
 import Pagination from '../components/Pagination';
 import TransactionForm from '../components/TransactionForm';
-import { LoadingState, ErrorState } from '../components/States';
+import { ErrorState } from '../components/States';
+import { TableSkeleton } from '../components/Skeleton';
 import { useApi } from '../hooks/useApi';
 import { transactionService } from '../services';
 import { useAuth } from '../context/AuthContext';
+import { titleCase } from '../utils/format';
 
 const RISK_LEVELS = ['low', 'medium', 'high', 'critical'];
 const STATUSES = ['pending', 'completed', 'failed', 'reversed'];
@@ -114,65 +116,107 @@ export default function Transactions() {
     URL.revokeObjectURL(url);
   };
 
+  const hasActiveFilters = Boolean(search || riskLevel || status);
+
+  const handleClearFilters = () => {
+    setSearch('');
+    setRiskLevel('');
+    setStatus('');
+    setPage(1);
+  };
+
   const canCreate = hasRole('admin', 'analyst', 'investigator');
 
   return (
     <AppLayout title="Transactions">
       <div className="card">
-        <div className="card-header">
-          <h3>All Transactions</h3>
+        <div className="card-header" style={{ flexWrap: 'wrap', gap: 12 }}>
+          <div>
+            <h3 style={{ margin: 0, fontSize: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span>💳</span> Transaction Ledger
+            </h3>
+            <p style={{ margin: '3px 0 0', fontSize: 12, color: 'var(--text-secondary)' }}>
+              Real-time monitoring stream, risk scoring, and status assessments
+            </p>
+          </div>
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
             <button type="button" className="btn btn-outline btn-sm" onClick={exportCsv} disabled={!visibleTransactions.length}>
-              Export CSV
+              📥 Export CSV
             </button>
             {canCreate && (
-              <button className="btn btn-primary" onClick={() => setShowForm(true)}>
+              <button className="btn btn-primary btn-sm" onClick={() => setShowForm(true)}>
                 + New Transaction
               </button>
             )}
           </div>
         </div>
 
-        <div className="filters-bar">
-          <input
-            placeholder="Search reference or account..."
-            value={search}
-            onChange={(e) => {
-              setPage(1);
-              setSearch(e.target.value);
-            }}
-          />
+        {/* Compact Single-Row Toolbar */}
+        <div className="table-toolbar">
+          <div className="search-box">
+            <span className="search-icon">🔍</span>
+            <input
+              type="text"
+              placeholder="Search reference or account (e.g. TXN-..., ACC-...)"
+              value={search}
+              onChange={(e) => {
+                setPage(1);
+                setSearch(e.target.value);
+              }}
+            />
+          </div>
+
           <select
+            className="filter-select"
             value={riskLevel}
             onChange={(e) => {
               setPage(1);
               setRiskLevel(e.target.value);
             }}
           >
-            <option value="">All risk levels</option>
+            <option value="">All Risk Levels</option>
             {RISK_LEVELS.map((r) => (
               <option key={r} value={r}>
-                {r}
+                {titleCase(r)} Risk
               </option>
             ))}
           </select>
+
           <select
+            className="filter-select"
             value={status}
             onChange={(e) => {
               setPage(1);
               setStatus(e.target.value);
             }}
           >
-            <option value="">All statuses</option>
+            <option value="">All Statuses</option>
             {STATUSES.map((s) => (
               <option key={s} value={s}>
-                {s}
+                {titleCase(s)}
               </option>
             ))}
           </select>
+
+          {hasActiveFilters && (
+            <button
+              type="button"
+              className="filter-reset-btn"
+              onClick={handleClearFilters}
+              title="Reset search and filters"
+            >
+              ✕ Clear filters
+            </button>
+          )}
+
+          <div className="results-count">
+            {data?.meta?.total !== undefined
+              ? `${visibleTransactions.length} of ${data.meta.total} records`
+              : `${visibleTransactions.length} records`}
+          </div>
         </div>
 
-        {loading && <LoadingState label="Loading transactions..." />}
+        {loading && <TableSkeleton rows={12} />}
         {error && <ErrorState message={error} onRetry={refetch} />}
         {!loading && !error && (
           <>

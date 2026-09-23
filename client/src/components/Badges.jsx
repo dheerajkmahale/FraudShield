@@ -34,10 +34,10 @@ export function RiskScoreBar({ score, level }) {
   const { color } = getRiskTone(level);
 
   return (
-    <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-      <span style={{ minWidth: 28, color: 'var(--color-text)' }}>{value}</span>
-      <div style={{ width: 80, height: 8, borderRadius: 999, background: 'rgba(216, 232, 222, 0.08)', overflow: 'hidden', display: 'inline-block' }}>
-        <div style={{ width: `${value}%`, height: '100%', background: color, borderRadius: 999, transition: 'width 0.2s ease' }} />
+    <div className="risk-score-cell">
+      <span className="risk-score-num" style={{ color }}>{value}</span>
+      <div className="risk-score-track">
+        <div className="risk-score-fill" style={{ width: `${value}%`, background: color }} />
       </div>
     </div>
   );
@@ -55,15 +55,29 @@ export function FraudStatusBadge({ status }) {
 
 export function StatusBadge({ status }) {
   const map = {
-    open: 'badge-neutral',
-    under_investigation: 'badge-warn',
-    escalated: 'badge-danger',
-    resolved: 'badge-success',
-    closed: 'badge-neutral',
+    open: 'badge-open',
+    under_investigation: 'badge-under-investigation',
+    escalated: 'badge-escalated',
+    resolved: 'badge-resolved',
+    closed: 'badge-closed',
     pending: 'badge-warn',
     completed: 'badge-success',
     failed: 'badge-danger',
     reversed: 'badge-neutral',
   };
   return <span className={`badge ${map[status] || 'badge-neutral'}`}>{titleCase(status || 'unknown')}</span>;
+}
+
+export function PriorityBadge({ priority = 'medium' }) {
+  const map = {
+    urgent: 'badge-escalated',
+    high: 'badge-under-investigation',
+    medium: 'badge-open',
+    low: 'badge-resolved',
+  };
+  return (
+    <span className={`badge ${map[priority] || 'badge-neutral'}`} style={{ textTransform: 'capitalize' }}>
+      {priority}
+    </span>
+  );
 }

@@ -10,6 +10,7 @@ async function start() {
 
   const server = app.listen(PORT, () => {
     logger.info(`FraudShield API running on port ${PORT} [${process.env.NODE_ENV || 'development'}]`);
+    logger.info(`API Documentation available at http://localhost:${PORT}/api/docs`);
   });
 
   // Graceful shutdown
