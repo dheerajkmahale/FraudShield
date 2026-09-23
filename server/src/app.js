@@ -11,13 +11,18 @@ const { notFoundHandler, errorHandler } = require('./middleware/errorHandler');
 const logger = require('./utils/logger');
 
 const app = express();
+const clientUrls = (process.env.CLIENT_URL || '')
+  .split(',')
+  .map((url) => url.trim().replace(/\/$/, ''))
+  .filter(Boolean);
+
 const allowedOrigins = [
-  process.env.CLIENT_URL,
+  ...clientUrls,
   'http://localhost:5173',
   'http://localhost:5174',
   'http://127.0.0.1:5173',
   'http://[::1]:5173',
-].filter(Boolean);
+];
 
 // --- Security & core middleware ---
 // CSP is kept enabled globally across the entire API, but disabled specifically for /api/docs so Swagger UI assets & scripts execute cleanly

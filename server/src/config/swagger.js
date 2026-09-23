@@ -282,6 +282,7 @@ const swaggerDefinition = {
                 schema: {
                   type: 'object',
                   properties: {
+                    status: { type: 'string', example: 'ok' },
                     success: { type: 'boolean', example: true },
                     message: { type: 'string', example: 'FraudShield API is running' },
                   },
